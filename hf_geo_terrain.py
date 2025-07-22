@@ -53,29 +53,29 @@ def geographic_terrain(difficulty: float, cfg: HfGeographicTerrainCfg) -> np.nda
 
         utm_bl = dem_tran.transform(src.bounds.left,  src.bounds.bottom)
         utm_tr = dem_tran.transform(src.bounds.right, src.bounds.top   )
-        utm_dx = utm_tr[0] - utm_bl[0]
-        utm_dy = utm_tr[1] - utm_bl[1]
-        px_dx = utm_dx / dem_raw.shape[0]
-        py_dx = utm_dy / dem_raw.shape[1]
+        utm_dx = abs(utm_tr[0] - utm_bl[0])
+        utm_dy = abs(utm_tr[1] - utm_bl[1])
+        px_dx = abs(utm_dx / dem_raw.shape[0])
+        py_dx = abs(utm_dy / dem_raw.shape[1])
         
-        px_sz = dem_raw.shape[0]
-        py_sz = dem_raw.shape[1]
+        px_sz = int(dem_raw.shape[0])
+        py_sz = int(dem_raw.shape[1])
         
         hf_scale = (1.0 / cfg.vertical_scale)
-
-        stat_min = np.min(dem_raw)     # Used as sim floor = 0.0
-        stat_avg = np.average(dem_raw) # Used as No Data value
-        stat_max = np.max(dem_raw)
+        alt_cen = dem_raw[int(px_sz/2)][int(py_sz/2)]
+        #stat_min = np.min(dem_raw)     # Used as sim floor = 0.0
+        #stat_avg = np.average(dem_raw) # Used as No Data value
+        #stat_max = np.max(dem_raw)
         print(f"Resolution (CRS) | (lon, lat): {src.res}")
         print(f"Resolution (pixels): {px_sz} x {py_sz} ")
         print(f"Resolution (meters): {px_dx} x {py_dx} ")
         print(f"Geographic {src.bounds}")
         print(f"Geographic Size: {utm_dx} m x {utm_dy} m")
-        print(f"Height Min: {stat_min} m")
-        print(f"Height Avg: {stat_avg} m")
-        print(f"Height Max: {stat_max} m")
+        #print(f"Height Min: {stat_min} m")
+        #print(f"Height Avg: {stat_avg} m")
+        #print(f"Height Max: {stat_max} m")
         print(f"CRS: {src.crs}")
-        print(f"Sampled elevation at center: {stat_avg} m (used as no_data value)")
+        print(f"Sampled elevation at center: {alt_cen} m (used as no_data value)")
         print(f"Quantized Height Feild Resolution: {hf_scale} (per meter)")
         print(f"Z-Axis Max Output Range(0, {cfg.vertical_scale*(math.pow(2,16)-1):.2f})")
         # TODO: testing to see if output height field requires odd resolutions
@@ -83,10 +83,12 @@ def geographic_terrain(difficulty: float, cfg: HfGeographicTerrainCfg) -> np.nda
             px_sz -= 1
         if(py_sz % 2 == 0):
             py_sz -= 1
-        hf_raw = np.full((px_sz, py_sz), (stat_avg*hf_scale) )
+        hf_raw = np.full((px_sz, py_sz), (alt_cen*hf_scale) )
         for x in range(0, px_sz):
             for y in range(0, py_sz):
-                hf_raw[x][y] = (dem_raw[x][y] - stat_min) * hf_scale
+                if( math.isnan(dem_raw[x][y]) ):
+                    dem_raw[x][y] = alt_cen
+                hf_raw[x][(py_sz-1)-y] = (dem_raw[x][y]-alt_cen+1.0) * hf_scale # (px_sz-1)-
     
     # round off the interpolated heights to the nearest vertical step
     return np.rint(hf_raw).astype(np.int16)
