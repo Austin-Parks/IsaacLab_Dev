@@ -27,10 +27,4 @@ class HfGeographicTerrainCfg(HfTerrainBaseCfg):
     #dem_cols: int = -1
     """The width of the DEM in pixels"""
     #no_data_val: float = 0.0
-    
-
-    
-    
-
-
 
